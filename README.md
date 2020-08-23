@@ -4,7 +4,7 @@ A simple visual editor for creating Feynman diagrams.
 
 You can [try it out here](https://feynman.srossd.com/).
 
-![Screenshot](./screenshot.png)
+![Screenshot](./banner.png)
 
 ## Building
 
