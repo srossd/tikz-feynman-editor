@@ -217,25 +217,6 @@ export default class App extends Component {
     })
   }
 
-  handleParseCode = () => {
-    let currentCode = diagram.toTeX(this.state.diagram)
-    let newCode = this.state.codeValue
-    let data = this.state.diagram
-
-    if (currentCode === newCode) return
-
-    try {
-      data = diagram.fromTeX(newCode)
-
-      this.resetCamera()
-      this.setState({showCodeBox: false})
-
-      this.handleDataChange({data})
-    } catch (err) {
-      alert(`Could not parse code.\n\nReason: ${err.message}`)
-    }
-  }
-
   moveInHistory = step => {
     if (this.history[this.historyPointer + step] == null) return
 
