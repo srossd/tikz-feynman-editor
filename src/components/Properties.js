@@ -11,7 +11,10 @@ export default class Properties extends Component {
     this.state = {
       edit: false,
       editTop: 0,
-      editLeft: 0
+      editLeft: 0,
+      editMomentum: false,
+      editMomentumTop: 0,
+      editMomentumLeft: 0
     }
   }
 
@@ -23,13 +26,10 @@ export default class Properties extends Component {
       let edgeEdit = 'Enter'
       let edgeDelete = ['Delete', 'Backspace']
       let edgeControl = {
-        ArrowUp: evt.shiftKey ? 'bendleft' : 'shiftleft',
-        ArrowDown: evt.shiftKey ? 'bendright' : 'shiftright',
-        r: 'reversearrow',
+        ArrowUp: 'bendleft',
+        ArrowDown: 'bendright',
         a: 'labelleft',
-        s: 'labelinside',
-        d: 'labelright',
-        e: 'rotate'
+        d: 'labelright'
       }
 
       if (edgeControl[evt.key] != null) {
@@ -55,7 +55,10 @@ export default class Properties extends Component {
       nextProps.data !== this.props.data ||
       nextState.edit !== this.state.edit ||
       nextState.editTop !== this.state.editTop ||
-      nextState.editLeft !== this.state.editLeft
+      nextState.editLeft !== this.state.editLeft ||
+      nextState.editMomentum !== this.state.editMomentum ||
+      nextState.editMomentumTop !== this.state.editMomentumTop ||
+      nextState.editMomentumLeft !== this.state.editMomentumLeft
     )
   }
 
@@ -64,6 +67,12 @@ export default class Properties extends Component {
       this.inputElement.select()
     } else if (prevState.edit && !this.state.edit) {
       this.inputElement.blur()
+    }
+
+    if (!prevState.editMomentum && this.state.editMomentum) {
+      this.momentumInputElement.select()
+    } else if (prevState.editMomentum && !this.state.editMomentum) {
+      this.momentumInputElement.blur()
     }
   }
 
@@ -82,6 +91,21 @@ export default class Properties extends Component {
     })
   }
 
+  updateMomentumEditPosition() {
+    let valueElement = document.querySelector(
+      `.grid-arrow[data-id="${this.props.edgeId}"] .momentum`
+    )
+    let {left, top, width} = valueElement.getBoundingClientRect()
+    let {width: editWidth, height: editHeight} = window.getComputedStyle(
+      this.editMomentumElement
+    )
+
+    this.setState({
+      editMomentumLeft: left + width / 2 - parseFloat(editWidth) / 2,
+      editMomentumTop: top - parseFloat(editHeight) - 10
+    })
+  }
+
   handleButtonClick = id => {
     if (this.buttonClickHandlersCache == null)
       this.buttonClickHandlersCache = {}
@@ -91,41 +115,21 @@ export default class Properties extends Component {
         let {data, onChange = () => {}} = this.props
         let change = {}
 
-        if (['tail', 'mapsto', 'twoheads'].includes(id)) {
-          let prop = id === 'twoheads' ? 'head' : 'tail'
-
-          change = {[prop]: data[prop] === id ? 'none' : id}
-        } else if (id === 'head') {
-          change = {head: data.head == null ? 'none' : null}
-        } else if (['double', 'solid', 'dashed', 'dotted'].includes(id)) {
-          change = {line: (data.line || 'solid') === id ? 'none' : id}
-
-          if (change.line === 'double') {
-            change = {
-              ...change,
-              ...([null, 'none'].includes(data.head) ? {} : {head: null}),
-              ...([null, 'mapsto', 'none'].includes(data.tail)
-                ? {}
-                : {tail: 'none'})
-            }
-          } else if (change.line === 'none') {
-            change = {
-              ...change,
-              head: 'none',
-              tail: 'none',
-              labelPosition: 'inside'
-            }
-          }
-        } else if (['labelleft', 'labelright', 'labelinside'].includes(id)) {
+        if (['scalar', 'fermion', 'photon', 'gluon'].includes(id)) {
+          change = {line: id}
+        } else if (['labelleft', 'labelright'].includes(id)) {
           change = {
-            labelPosition: data.line === 'none' ? 'inside' : id.slice(5)
+            labelPosition: id.slice(5)
           }
-        } else if (['hook', 'harpoon'].includes(id)) {
-          let prop = id === 'hook' ? 'tail' : 'head'
-          let ids = [id, `${id}alt`, 'none']
-          let index = (ids.indexOf(data[prop]) + 1) % ids.length
-
-          change = {[prop]: ids[index]}
+        } else if (['momentumleft', 'momentumright'].includes(id)) {
+          change = {
+            momentumPosition: id.slice(8)
+          }
+        } else if (['plain', 'particle', 'antiparticle'].includes(id)) {
+          let charge = {plain: 0, particle: 1, antiparticle: -1}[id]
+          change = {
+            charge: data.charge === charge ? 0 : charge
+          }
         } else if (['bendleft', 'bendright'].includes(id)) {
           if (data.loop != null) return
 
@@ -149,53 +153,6 @@ export default class Properties extends Component {
             steps[Math.min(index + (+increase * 2 - 1), steps.length - 1)]
 
           change = {bend: clamp(-80, 80, newBend)}
-        } else if (['shiftleft', 'shiftright'].includes(id)) {
-          if (data.loop != null) return
-
-          let {shift = 0} = data
-          change = {shift: shift + (id === 'shiftright' ? 1 : -1)}
-        } else if (['reversearrow'].includes(id)) {
-          let {from, to, labelPosition} = data
-
-          change = {to: from, from: to}
-
-          // Invert label position
-
-          if (labelPosition != null) {
-            let newLabelPos = labelPosition
-
-            if (labelPosition === 'left') {
-              newLabelPos = 'right'
-            } else if (labelPosition === 'right') {
-              newLabelPos = 'left'
-            }
-
-            change.labelPosition = newLabelPos
-          }
-
-          // Invert bend
-
-          if (data.bend != null) {
-            change.bend = -data.bend
-          }
-
-          // Invert shift
-
-          if (data.shift != null) {
-            change.shift = -data.shift
-          }
-
-          // Invert loop direction
-
-          if (data.loop != null) {
-            let [angle, clockwise] = data.loop
-            change.loop = [angle, !clockwise]
-          }
-        } else if (['rotate'].includes(id)) {
-          if (data.loop == null) return
-
-          let [angle, clockwise] = data.loop
-          change.loop = [(angle + 90) % 360, clockwise]
         }
 
         onChange({data: {...data, ...change}})
@@ -237,6 +194,38 @@ export default class Properties extends Component {
     }
   }
 
+  handleMomentumEditButtonClick = () => {
+    this.updateMomentumEditPosition()
+    this.setState({editMomentum: true})
+  }
+
+  handleMomentumFormSubmit = evt => {
+    evt.preventDefault()
+    this.setState({editMomentum: false})
+  }
+
+  handleMomentumInputBlur = () => {
+    this.setState({editMomentum: false})
+  }
+
+  handleMomentumInputChange = evt => {
+    let {value} = evt.srcElement
+    let {onChange = () => {}} = this.props
+
+    onChange({data: {...this.props.data, momentum: value}})
+  }
+
+  handleMomentumInputKeyDown = evt => {
+    evt.stopPropagation()
+  }
+
+  handleMomentumInputKeyUp = evt => {
+    if (evt.key === 'Escape') {
+      evt.stopPropagation()
+      this.setState({editMomentum: false})
+    }
+  }
+
   render() {
     let data = this.props.data == null ? {} : this.props.data
 
@@ -245,93 +234,69 @@ export default class Properties extends Component {
         id="properties"
         class={classNames({
           show: this.props.show,
-          edit: this.state.edit
+          edit: this.state.edit,
+          editMomentum: this.state.editMomentum
         })}
       >
         <Toolbox>
           <Button
-            checked={false}
-            icon="./img/properties/reverse.svg"
-            name="Reverse Arrow (R)"
-            onClick={this.handleButtonClick('reversearrow')}
+            checked={data.line === 'scalar'}
+            icon="./img/particles/scalar.svg"
+            name="Scalar"
+            onClick={this.handleButtonClick('scalar')}
+          />
+
+          <Button
+            checked={!data.line || data.line === 'fermion'}
+            icon="./img/particles/fermion.svg"
+            name="Fermion"
+            onClick={this.handleButtonClick('fermion')}
+          />
+
+          <Button
+            checked={data.line === 'photon'}
+            icon="./img/particles/photon.svg"
+            name="Photon"
+            onClick={this.handleButtonClick('photon')}
+          />
+
+          <Button
+            checked={data.line === 'gluon'}
+            disabled={data.charge === 1 || data.charge === -1}
+            icon="./img/particles/gluon.svg"
+            name="Gluon"
+            onClick={this.handleButtonClick('gluon')}
           />
 
           <Separator />
 
           <Button
-            checked={data.tail === 'tail'}
-            disabled={['none', 'double'].includes(data.line)}
-            icon="./img/properties/tail.svg"
-            name="Tail"
-            onClick={this.handleButtonClick('tail')}
+            checked={!data.charge || data.charge === 0}
+            icon="./img/particles/plain.svg"
+            name="Uncharged"
+            onClick={this.handleButtonClick('plain')}
           />
 
           <Button
-            checked={data.tail === 'mapsto'}
-            disabled={['none'].includes(data.line)}
-            icon="./img/properties/mapsto.svg"
-            name="Maps To"
-            onClick={this.handleButtonClick('mapsto')}
+            checked={data.charge === 1}
+            disabled={data.line === 'gluon'}
+            icon="./img/particles/fermion.svg"
+            name="Particle"
+            onClick={this.handleButtonClick('particle')}
           />
 
           <Button
-            checked={['hook', 'hookalt'].includes(data.tail)}
-            disabled={['none', 'double'].includes(data.line)}
-            icon={`./img/properties/${
-              data.tail === 'hookalt' ? 'hookalt' : 'hook'
-            }.svg`}
-            name="Hook"
-            onClick={this.handleButtonClick('hook')}
-          />
-
-          <Separator />
-
-          <Button
-            checked={data.line === 'dotted'}
-            icon="./img/properties/dotted.svg"
-            name="Dotted"
-            onClick={this.handleButtonClick('dotted')}
-          />
-
-          <Button
-            checked={data.line === 'dashed'}
-            icon="./img/properties/dashed.svg"
-            name="Dashed"
-            onClick={this.handleButtonClick('dashed')}
-          />
-
-          <Button
-            checked={!data.line || data.line === 'solid'}
-            icon="./img/properties/solid.svg"
-            name="Solid"
-            onClick={this.handleButtonClick('solid')}
-          />
-
-          <Button
-            checked={data.line === 'double'}
-            icon="./img/properties/double.svg"
-            name="Double"
-            onClick={this.handleButtonClick('double')}
+            checked={data.charge === -1}
+            disabled={data.line === 'gluon'}
+            icon="./img/particles/antifermion.svg"
+            name="Antiparticle"
+            onClick={this.handleButtonClick('antiparticle')}
           />
 
           <Separator />
 
           {data.loop == null ? (
             <>
-              <Button
-                key="shiftright"
-                icon="./img/properties/shiftright.svg"
-                name="Shift Right (Down Arrow)"
-                onClick={this.handleButtonClick('shiftright')}
-              />
-
-              <Button
-                key="shiftleft"
-                icon="./img/properties/shiftleft.svg"
-                name="Shift Left (Up Arrow)"
-                onClick={this.handleButtonClick('shiftleft')}
-              />
-
               <Button
                 key="bendright"
                 icon="./img/properties/bendright.svg"
@@ -360,46 +325,11 @@ export default class Properties extends Component {
           <Separator />
 
           <Button
-            checked={['harpoon', 'harpoonalt'].includes(data.head)}
-            disabled={['none', 'double'].includes(data.line)}
-            icon={`./img/properties/${
-              data.head === 'harpoonalt' ? 'harpoonalt' : 'harpoon'
-            }.svg`}
-            name="Harpoon"
-            onClick={this.handleButtonClick('harpoon')}
-          />
-
-          <Button
-            checked={data.head == null}
-            disabled={['none'].includes(data.line)}
-            icon="./img/properties/head.svg"
-            name="Default Head"
-            onClick={this.handleButtonClick('head')}
-          />
-
-          <Button
-            checked={data.head == 'twoheads'}
-            disabled={['none', 'double'].includes(data.line)}
-            icon="./img/properties/twoheads.svg"
-            name="Two Heads"
-            onClick={this.handleButtonClick('twoheads')}
-          />
-
-          <Separator />
-
-          <Button
             checked={!data.labelPosition || data.labelPosition === 'left'}
             disabled={['none'].includes(data.line)}
             icon="./img/properties/labelleft.svg"
             name="Left Label (A)"
             onClick={this.handleButtonClick('labelleft')}
-          />
-
-          <Button
-            checked={data.labelPosition === 'inside'}
-            icon="./img/properties/labelinside.svg"
-            name="Inside Label (S)"
-            onClick={this.handleButtonClick('labelinside')}
           />
 
           <Button
@@ -415,6 +345,31 @@ export default class Properties extends Component {
             icon="./img/properties/edit.svg"
             name="Edit Label (Enter)"
             onClick={this.handleEditButtonClick}
+          />
+
+          <Separator />
+
+          <Button
+            checked={!data.momentumPosition || data.momentumPosition === 'left'}
+            disabled={['none'].includes(data.line)}
+            icon="./img/properties/momentumleft.svg"
+            name="Left Momentum Label"
+            onClick={this.handleButtonClick('momentumleft')}
+          />
+
+          <Button
+            checked={data.momentumPosition === 'right'}
+            disabled={['none'].includes(data.line)}
+            icon="./img/properties/momentumright.svg"
+            name="Right Momentum Label"
+            onClick={this.handleButtonClick('momentumright')}
+          />
+
+          <Button
+            checked={this.state.editMomentum}
+            icon="./img/properties/edit.svg"
+            name="Edit Momentum Label (Enter)"
+            onClick={this.handleMomentumEditButtonClick}
           />
 
           <Separator />
@@ -444,6 +399,26 @@ export default class Properties extends Component {
             onInput={this.handleInputChange}
             onKeyDown={this.handleInputKeyDown}
             onKeyUp={this.handleInputKeyUp}
+          />
+        </form>
+
+        <form
+          ref={el => (this.editMomentumElement = el)}
+          class="editMomentum"
+          style={{
+            left: this.state.editMomentumLeft,
+            top: this.state.editMomentumTop
+          }}
+          onSubmit={this.handleMomentumFormSubmit}
+        >
+          <input
+            ref={el => (this.momentumInputElement = el)}
+            type="text"
+            value={data.momentum || ''}
+            onBlur={this.handleMomentumInputBlur}
+            onInput={this.handleMomentumInputChange}
+            onKeyDown={this.handleMomentumInputKeyDown}
+            onKeyUp={this.handleMomentumInputKeyUp}
           />
         </form>
       </section>

@@ -1,10 +1,11 @@
 import {h, render, Component} from 'preact'
 import copyText from 'copy-text-to-clipboard'
 import * as diagram from '../diagram'
-import {arrAdd, lexicalCompare} from '../helper'
+import {arrAdd, lexicalCompare, arrEquals, getId} from '../helper'
 
 import Grid from './Grid'
 import Properties from './Properties'
+import NodeProperties from './NodeProperties'
 import Toolbox, {Button, Separator} from './Toolbox'
 import CodeBox from './CodeBox'
 
@@ -329,7 +330,7 @@ export default class App extends Component {
           el.click()
           el.remove()
         }}
-        href="https://github.com/yishn/tikzcd-editor"
+        href="https://github.com/srossd/tikz-feynman-editor"
         target="_blank"
       />,
       document.createElement('div')
@@ -356,6 +357,35 @@ export default class App extends Component {
     })
   }
 
+  handleCellChange = evt => {
+    let newNodes = [...this.state.diagram.nodes]
+    let index = this.state.diagram.nodes.findIndex(n =>
+      arrEquals(n.position, evt.position)
+    )
+
+    if (index >= 0) newNodes[index] = {...newNodes[index], ...evt.data}
+    else if (evt.data.vertex)
+      newNodes.push({
+        id: getId(),
+        position: evt.position,
+        vertex: evt.data.vertex
+      })
+
+    newNodes = newNodes.filter(
+      n =>
+        (n.value && n.value.trim() !== '') ||
+        n.vertex ||
+        this.state.diagram.edges.some(e => e.from === n.id || e.to === n.id)
+    )
+
+    this.handleDataChange({
+      data: {
+        nodes: newNodes,
+        edges: this.state.diagram.edges
+      }
+    })
+  }
+
   handleEdgeRemoveClick = () => {
     let newEdges = this.state.diagram.edges.filter(
       (_, i) => i !== this.state.selectedArrow
@@ -363,7 +393,8 @@ export default class App extends Component {
 
     let newNodes = this.state.diagram.nodes.filter(
       n =>
-        n.value.trim() !== '' ||
+        (n.value && n.value.trim() !== '') ||
+        n.vertex ||
         newEdges.some(e => e.from === n.id || e.to === n.id)
     )
 
@@ -403,6 +434,21 @@ export default class App extends Component {
           data={this.state.diagram.edges[this.state.selectedArrow]}
           onChange={this.handleEdgeChange}
           onRemoveClick={this.handleEdgeRemoveClick}
+        />
+
+        <NodeProperties
+          nodePosition={this.state.selectedCell}
+          show={
+            this.state.selectedArrow == null && this.state.selectedCell != null
+          }
+          data={
+            this.state.selectedCell != null
+              ? this.state.diagram.nodes.filter(node =>
+                  arrEquals(node.position, this.state.selectedCell)
+                )[0]
+              : null
+          }
+          onChange={this.handleCellChange}
         />
 
         <Toolbox id="toolbox">

@@ -1,4 +1,3 @@
-import {h, render, Diagram, Node, Edge} from 'jsx-tikzcd'
 import {
   compressToEncodedURIComponent,
   decompressFromEncodedURIComponent
@@ -11,7 +10,6 @@ import {
   b64DecodeUnicode,
   b64EncodeUnicode
 } from './helper'
-import {parse} from './parser'
 
 export function toJSON(diagram) {
   let leftTop = [0, 1].map(i =>
@@ -70,90 +68,74 @@ export function fromCompressedBase64(compressed) {
 }
 
 export function toTeX(diagram) {
-  return render(
-    <Diagram>
-      {diagram.nodes.map((node, i) => (
-        <Node key={node.id} position={node.position} value={node.value} />
-      ))}
-
-      {diagram.edges.map(edge => [
-        <Edge
-          from={edge.from}
-          to={edge.to}
-          value={edge.value}
-          labelPosition={edge.line === 'none' ? null : edge.labelPosition}
-          args={[
-            ...[
-              edge.head,
-              edge.line,
-              edge.tail,
-              edge.labelPositionLongitudinal
-            ].map(
-              (id, i) =>
-                ({
-                  double: 'Rightarrow',
-                  solid: null,
-                  dashed: 'dashed',
-                  dotted: 'dotted',
-                  none: [
-                    edge.line === 'none' ? null : 'no head',
-                    'phantom',
-                    null
-                  ][i],
-                  default: null,
-                  harpoon: 'harpoon',
-                  harpoonalt: "harpoon'",
-                  hook: 'hook',
-                  hookalt: "hook'",
-                  mapsto: 'maps to',
-                  tail: 'tail',
-                  twoheads: 'two heads',
-                  center: null,
-                  nearstart: 'near start',
-                  nearend: 'near end',
-                  verynearstart: 'very near start',
-                  verynearend: 'very near end'
-                }[id])
-            ),
-
-            edge.bend > 0
-              ? `bend left=${edge.bend}`.replace(/=30$/, '')
-              : edge.bend < 0
-              ? `bend right=${-edge.bend}`.replace(/=30$/, '')
-              : null,
-
-            edge.shift < 0
-              ? `shift left=${-edge.shift}`.replace(/=1$/, '')
-              : edge.shift > 0
-              ? `shift right=${edge.shift}`.replace(/=1$/, '')
-              : null,
-
-            ...(edge.loop != null
-              ? (() => {
-                  let [angle, clockwise] = edge.loop || [0, false]
-                  let [inAngle, outAngle] = [235, 305].map(
-                    x => (x + angle + 360) % 360
-                  )
-                  if (!clockwise) {
-                    ;[inAngle, outAngle] = [outAngle, inAngle]
-                  }
-                  return [
-                    'loop',
-                    'distance=2em',
-                    `in=${inAngle}`,
-                    `out=${outAngle}`
-                  ]
-                })()
-              : [])
-          ].filter(x => x != null)}
-        />
-      ])}
-    </Diagram>,
-    {align: true}
+  let origin = diagram.nodes.reduce(
+    (acc, node) => {
+      return {
+        x: Math.min(acc.x, node.position[0]),
+        y: Math.min(acc.y, -node.position[1])
+      }
+    },
+    {x: Infinity, y: Infinity}
   )
-}
 
-export function fromTeX(code) {
-  let diagram = parse(code)
-  return fromJSON(JSON.stringify(diagram))
+  let vertices = diagram.nodes.map(node => {
+    var adjx = node.position[0] - origin.x
+    var adjy = -node.position[1] - origin.y
+
+    var label = node.value ? ' {\\(' + node.value + '\\)}' : ''
+
+    var start = node.vertex
+      ? '\\node[' + node.vertex.replace('_', ' ') + ']'
+      : '\\vertex'
+
+    return `${start} (${node.id}) at (${2 * adjx}, ${2 * adjy})${label};`
+  })
+
+  let edges = diagram.edges.map((edge, i) => {
+    var linetype = {
+      'scalar -1': 'anti charged scalar',
+      'scalar 0': 'scalar',
+      'scalar 1': 'charged scalar',
+      'fermion -1': 'anti fermion',
+      'fermion 0': 'plain',
+      'fermion 1': 'fermion',
+      'photon -1': 'anti charged boson',
+      'photon 0': 'photon',
+      'photon 1': 'charged boson',
+      'gluon 0': 'gluon'
+    }[(edge.line || 'fermion') + ' ' + (edge.charge || '0')]
+
+    var bend =
+      edge.bend > 0
+        ? ',bend left=' + edge.bend
+        : edge.bend < 0
+        ? ',bend right=' + -edge.bend
+        : ''
+
+    var label = edge.value
+      ? ',edge label' +
+        (edge.labelPosition === 'right' ? "'" : '') +
+        '={\\(' +
+        edge.value +
+        '\\)}'
+      : ''
+
+    var momentumLabel = edge.momentum
+      ? ',momentum' +
+        (edge.momentumPosition === 'right' ? "'" : '') +
+        '={\\(' +
+        edge.momentum +
+        '\\)}'
+      : ''
+
+    return `(${edge.from}) --[${linetype}${bend}${label}${momentumLabel}] (${edge.to})`
+  })
+
+  return (
+    '\\begin{tikzpicture}\n\\begin{feynman}\n' +
+    vertices.join('\n') +
+    '\n\\diagram*{\n' +
+    edges.map(x => '\t' + x).join(',\n') +
+    '\n};\n\\end{feynman}\n\\end{tikzpicture}'
+  )
 }

@@ -49,9 +49,9 @@ export default class CodeBox extends Component {
               <button onClick={this.handleCopyClick}>Copy</button>
             </li>
             <li class="separator" />
-            <li>
+            {/* <li>
               <button onClick={this.props.onParseButtonClick}>Parse</button>
-            </li>
+            </li> */}
             <li>
               <button onClick={this.props.onClose}>Close</button>
             </li>

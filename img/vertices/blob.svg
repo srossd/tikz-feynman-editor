@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="21.658pt" height="21.658pt" viewBox="0 0 21.658 21.658" version="1.1">
+<defs>
+<clipPath id="clip1">
+  <path d="M 0 0 L 21.65625 0 L 21.65625 21.65625 L 0 21.65625 Z M 0 0 "/>
+</clipPath>
+<clipPath id="clip2">
+  <path d="M 21.460938 10.828125 C 21.460938 4.957031 16.699219 0.199219 10.828125 0.199219 C 4.957031 0.199219 0.199219 4.957031 0.199219 10.828125 C 0.199219 16.699219 4.957031 21.460938 10.828125 21.460938 C 16.699219 21.460938 21.460938 16.699219 21.460938 10.828125 Z M 21.460938 10.828125 "/>
+</clipPath>
+<clipPath id="clip3">
+  <rect x="0" y="0" width="3" height="3"/>
+</clipPath>
+<g id="surface5" clip-path="url(#clip3)">
+<path style="fill:none;stroke-width:0.3985;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 0 2.98883 L 2.98883 0 M 0.198477 -0.198477 L -0.198477 0.198477 M 3.187307 2.790353 L 2.790353 3.187307 " transform="matrix(1.003737,0,0,1.003737,0,0)"/>
+</g>
+<pattern id="pattern0" patternUnits="userSpaceOnUse" width="3" height="3" patternTransform="matrix(0.996277,0,0,-0.996277,0,21.658)">
+<use xlink:href="#surface5"/>
+</pattern>
+<clipPath id="clip4">
+  <path d="M 0 0 L 21.65625 0 L 21.65625 21.65625 L 0 21.65625 Z M 0 0 "/>
+</clipPath>
+</defs>
+<g id="surface1">
+<g clip-path="url(#clip1)" clip-rule="nonzero">
+<g clip-path="url(#clip2)" clip-rule="nonzero">
+<path style=" stroke:none;fill-rule:nonzero;fill:url(#pattern0);" d="M 0.199219 21.460938 L 21.460938 21.460938 L 21.460938 0.199219 L 0.199219 0.199219 Z M 0.199219 21.460938 "/>
+</g>
+</g>
+<g clip-path="url(#clip4)" clip-rule="nonzero">
+<path style="fill:none;stroke-width:0.3985;stroke-linecap:butt;stroke-linejoin:miter;stroke:rgb(0%,0%,0%);stroke-opacity:1;stroke-miterlimit:10;" d="M 10.631937 0.000875 C 10.631937 5.871969 5.870219 10.629781 -0.000875 10.629781 C -5.871969 10.629781 -10.629781 5.871969 -10.629781 0.000875 C -10.629781 -5.870219 -5.871969 -10.631937 -0.000875 -10.631937 C 5.870219 -10.631937 10.631937 -5.870219 10.631937 0.000875 Z M 10.631937 0.000875 " transform="matrix(1,0,0,-1,10.829,10.829)"/>
+</g>
+</g>
+</svg>

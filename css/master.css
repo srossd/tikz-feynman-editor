@@ -103,15 +103,20 @@ a, img {
     opacity: 0;
     pointer-events: none;
   }
-  .grid-cell .loop {
+  .grid-cell .vertex {
     position: absolute;
-    right: 2px;
-    top: 2px;
+    left: 50%;
+    top: 50%;
     width: 26px;
     height: 26px;
-    cursor: pointer;
-    opacity: 0;
-    pointer-events: none;
+    margin-top: -12px;
+    margin-left: -12px;
+  }
+  .grid-cell .blob {
+    width: 50px;
+    height: 50px;
+    margin-top: -24px;
+    margin-left: -24px;
   }
   .pan .grid-cell:hover .grabber, .arrow .grid-cell:hover .loop {
     opacity: 1;
@@ -159,13 +164,9 @@ a, img {
   .grid-arrow.selected svg .mouse.mouse {
     stroke: rgb(204, 204, 204);
   }
-  .grid-arrow .value {
+  .grid-arrow .value, .grid-arrow .momentum {
     position: absolute;
     white-space: nowrap;
-  }
-  .grid-arrow .value.inside {
-    padding: 0 5px;
-    background: white;
 }
 
 .toolbox {
@@ -235,7 +236,7 @@ a, img {
   #properties.edit {
     pointer-events: all;
   }
-  #properties .edit {
+  #properties .edit,#properties .editMomentum {
     border-radius: 5px;
     position: absolute;
     width: 130px;
@@ -246,7 +247,7 @@ a, img {
     transform: scale(.7) translate(0, 100%);
     transition: opacity .1s, transform .1s;
   }
-  #properties .edit::after {
+  #properties .edit::after,#properties .editMomentum::after {
     content: '';
     display: block;
     position: absolute;
@@ -256,11 +257,11 @@ a, img {
     border-right: 10px solid transparent;
     border-top: 10px solid rgb(77, 77, 77);
   }
-  #properties.edit .edit {
+  #properties.edit .edit,#properties.editMomentum .editMomentum {
     opacity: 1;
     transform: scale(1);
   }
-  #properties .edit input {
+  #properties .edit input, #properties .editMomentum input {
     width: 100%;
     border: none;
     outline: none;

@@ -10,12 +10,13 @@ export default class GridCell extends Component {
     return (
       nextProps.value !== this.props.value ||
       nextProps.edit !== this.props.edit ||
-      nextProps.selected !== this.props.selected
+      nextProps.selected !== this.props.selected ||
+      nextProps.vertex !== this.props.vertex
     )
   }
 
   componentDidUpdate(prevProps) {
-    let {onTypesetFinish = () => {}} = this.props
+    let {onTypesetFinish = () => {}, onChange = () => {}} = this.props
 
     for (let el of this.valueElement.querySelectorAll(
       ['span[id^="MathJax"]', '.MathJax_Preview', 'script'].join(', ')
@@ -35,6 +36,13 @@ export default class GridCell extends Component {
       onTypesetFinish({
         position: this.props.position,
         element: null
+      })
+    }
+
+    if (this.props.vertex) {
+      onChange({
+        position: this.props.position,
+        vertex: this.props.vertex
       })
     }
 
@@ -87,12 +95,6 @@ export default class GridCell extends Component {
     })
   }
 
-  handleAddLoop = evt => {
-    let {onAddLoopClick = () => {}} = this.props
-
-    onAddLoopClick(evt)
-  }
-
   render() {
     return (
       <li
@@ -131,13 +133,12 @@ export default class GridCell extends Component {
           onDragStart={this.handleGrabberDragStart}
         />
 
-        <img
-          class="loop"
-          src="./img/loop.svg"
-          title="Create Loop"
-          alt="Create Loop"
-          onClick={this.handleAddLoop}
-        />
+        {this.props.vertex && (
+          <img
+            class={'vertex' + (this.props.vertex == 'blob' ? ' blob' : '')}
+            src={`./img/vertices/${this.props.vertex}.svg`}
+          />
+        )}
       </li>
     )
   }

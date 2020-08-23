@@ -247,30 +247,6 @@ export default class Grid extends Component {
     }
   }
 
-  handleCellAddLoopClick = evt => {
-    if (evt.button !== 0) return
-
-    evt.stopPropagation()
-
-    let newNodes = [...this.props.data.nodes]
-    let position = this.coordsToPosition([evt.clientX, evt.clientY])
-    let node = newNodes.find(n => arrEquals(n.position, position))
-    if (node == null) newNodes.push((node = {id: getId(), position, value: ''}))
-
-    let newEdges = [
-      ...this.props.data.edges,
-      {
-        from: node.id,
-        to: node.id,
-        loop: [0, false],
-        labelPosition: 'right'
-      }
-    ]
-
-    let {onDataChange = () => {}} = this.props
-    onDataChange({data: {nodes: newNodes, edges: newEdges}})
-  }
-
   handleNodeMouseUp = evt => {
     if (this.mouseDown == null) return
 
@@ -290,18 +266,24 @@ export default class Grid extends Component {
     let index = nodes.findIndex(n => arrEquals(n.position, evt.position))
 
     if (index < 0) {
-      if (evt.value.trim() !== '') {
+      if ((evt.value && evt.value.trim() !== '') || evt.vertex) {
         nodes.push({
           id: getId(),
           position: evt.position,
-          value: evt.value
+          value: evt.value,
+          vertex: evt.vertex
         })
       }
     } else {
       let {id} = nodes[index]
-      nodes[index] = {id, position: [...evt.position], value: evt.value}
+      nodes[index] = {
+        id,
+        position: [...evt.position],
+        value: evt.value,
+        vertex: evt.vertex
+      }
 
-      if (evt.value.trim() === '') {
+      if ((!evt.value || evt.value.trim() === '') && !evt.vertex) {
         // Cleanup if necessary
 
         let existingEdge = this.props.data.edges.find(
@@ -309,6 +291,27 @@ export default class Grid extends Component {
         )
         if (!existingEdge) nodes[index] = null
       }
+    }
+
+    index = nodes.findIndex(n => arrEquals(n.position, evt.position))
+    if (index >= 0) {
+      var node = nodes[index]
+
+      var rect = this.state.cellTypesetSizes[node.position.join(',')] || {
+        width: 0,
+        height: 0
+      }
+
+      if (node.vertex) {
+        rect.width = Math.max(rect.width, node.vertex == 'blob' ? 50 : 26)
+        rect.height = Math.max(rect.height, node.vertex == 'blob' ? 50 : 26)
+      }
+
+      this.setState(state => ({
+        cellTypesetSizes: Object.assign(state.cellTypesetSizes, {
+          [evt.position.join(',')]: [rect.width, rect.height]
+        })
+      }))
     }
 
     onDataChange({
@@ -326,6 +329,14 @@ export default class Grid extends Component {
     }
 
     let rect = evt.element.getBoundingClientRect()
+    var node = this.props.data.nodes.filter(node =>
+      arrEquals(node.position, evt.position)
+    )[0]
+
+    if (node.vertex) {
+      rect.width = Math.max(rect.width, node.vertex == 'blob' ? 50 : 26)
+      rect.height = Math.max(rect.height, node.vertex == 'blob' ? 50 : 26)
+    }
 
     this.setState(state => ({
       cellTypesetSizes: Object.assign(state.cellTypesetSizes, {
@@ -407,6 +418,7 @@ export default class Grid extends Component {
                       selected={selected}
                       edit={selected && this.props.cellEditMode}
                       value={node && node.value}
+                      vertex={node && node.vertex}
                       onGrabberMouseDown={this.handleCellGrabberMouseDown}
                       onAddLoopClick={this.handleCellAddLoopClick}
                       onSubmit={this.props.onCellSubmit}
@@ -439,13 +451,12 @@ export default class Grid extends Component {
                 toSize={cellTypesetSizes[toPosition.join(',')]}
                 selected={this.props.selectedArrow === i}
                 bend={edge.bend}
-                shift={edge.shift}
-                loop={edge.loop}
-                tail={edge.tail}
                 line={edge.line}
-                head={edge.head}
                 value={edge.value}
+                momentum={edge.momentum}
+                charge={edge.charge}
                 labelPosition={edge.labelPosition}
+                momentumPosition={edge.momentumPosition}
                 onClick={this.handleEdgeClick(i)}
               />
             )

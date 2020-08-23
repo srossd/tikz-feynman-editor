@@ -1,26 +1,26 @@
 {
-  "name": "tikzcd-editor",
-  "version": "0.9.0",
-  "description": "A simple editor for creating commutative diagrams.",
+  "name": "tikz-feynman-editor",
+  "version": "0.1.0",
+  "description": "A simple editor for creating Feynman diagrams.",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yishn/tikzcd-editor.git"
+    "url": "git+https://github.com/srossd/tikz-feynman-editor.git"
   },
   "keywords": [
-    "math",
-    "tikzcd",
+    "physics",
+    "tikz-feynman",
     "tikz",
     "latex",
     "diagram",
     "editor",
     "mathematics"
   ],
-  "author": "Yichuan Shen",
+  "author": "Ross Dempsey",
   "license": "MIT",
-  "homepage": "https://github.com/yishn/tikzcd-editor",
+  "homepage": "https://github.com/srossd/tikz-feynman-editor",
   "bugs": {
-    "url": "https://github.com/yishn/tikzcd-editor/issues"
+    "url": "https://github.com/srossd/tikz-feynman-editor/issues"
   },
   "dependencies": {
     "classnames": "^2.2.6",
@@ -28,7 +28,8 @@
     "doken": "^1.0.0",
     "jsx-tikzcd": "^0.5.1",
     "lz-string": "^1.4.4",
-    "preact": "^10.2.1"
+    "preact": "^10.2.1",
+    "svg-path-properties": "^1.0.5"
   },
   "devDependencies": {
     "@babel/core": "^7.8.3",

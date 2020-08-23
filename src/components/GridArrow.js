@@ -8,9 +8,12 @@ import {
   getRectCenteredAround,
   getRectSegmentIntersections
 } from '../geometry'
+import {svgPathProperties} from 'svg-path-properties'
 
-const tailHeadWidth = 9.764
-const tailHeadHeight = 13
+const lineWidth = 30
+const squiggleStep = 10
+const squiggleAmplitude = 5
+const gluonAmplitude = 10
 
 export default class GridArrow extends Component {
   constructor(props) {
@@ -19,6 +22,8 @@ export default class GridArrow extends Component {
     this.state = {
       labelX: '50%',
       labelY: 0,
+      momentumX: '50%',
+      momentumY: 0,
       startPoint: props.from.map(x => x * props.cellSize + props.cellSize / 2),
       endPoint: props.to.map(x => x * props.cellSize + props.cellSize / 2)
     }
@@ -56,7 +61,8 @@ export default class GridArrow extends Component {
       nextProps.toSize === this.props.toSize &&
       nextProps.bend === this.props.bend &&
       nextProps.shift === this.props.shift &&
-      nextProps.loop === this.props.loop
+      nextProps.loop === this.props.loop &&
+      nextProps.charge === this.props.charge
     )
       return
 
@@ -68,10 +74,10 @@ export default class GridArrow extends Component {
       let [toWidth, toHeight] = toSize || [0, 0]
 
       ;[toWidth, toHeight] = [toWidth, toHeight].map(x =>
-        Math.min(cellSize, x + 20)
+        Math.min(cellSize, x + (toWidth != toHeight ? 20 : 0))
       )
       ;[fromWidth, fromHeight] = [fromWidth, fromHeight].map(x =>
-        Math.min(cellSize, x + 20)
+        Math.min(cellSize, x + (fromWidth != fromHeight ? 20 : 0))
       )
 
       let [fromCenter, toCenter] = [nextProps.from, nextProps.to].map(x =>
@@ -103,6 +109,17 @@ export default class GridArrow extends Component {
         toCenter
       )[0]
 
+      if (fromWidth == fromHeight)
+        fromIntersection = arrAdd(
+          fromCenter,
+          arrScale(fromWidth / 2, normalize(arrSubtract(toCenter, fromCenter)))
+        )
+      if (toWidth == toHeight)
+        toIntersection = arrAdd(
+          toCenter,
+          arrScale(toWidth / 2, normalize(arrSubtract(fromCenter, toCenter)))
+        )
+
       this.setState({
         startPoint: fromIntersection || fromCenter,
         endPoint: toIntersection || toCenter
@@ -111,11 +128,16 @@ export default class GridArrow extends Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (this.valueElement == null) return
+    if (this.valueElement == null && this.momentumElement == null) return
 
     let {onTypesetFinish = () => {}} = this.props
 
     for (let el of this.valueElement.querySelectorAll(
+      ['span[id^="MathJax"]', '.MathJax_Preview', 'script'].join(', ')
+    )) {
+      el.remove()
+    }
+    for (let el of this.momentumElement.querySelectorAll(
       ['span[id^="MathJax"]', '.MathJax_Preview', 'script'].join(', ')
     )) {
       el.remove()
@@ -127,6 +149,21 @@ export default class GridArrow extends Component {
         onTypesetFinish({
           id: this.props.id,
           element: this.valueElement.querySelector('.MathJax_Preview + span')
+        })
+      })
+    } else {
+      onTypesetFinish({
+        id: this.props.id,
+        element: null
+      })
+    }
+
+    if (this.props.momentum) {
+      MathJax.Hub.Queue(['Typeset', MathJax.Hub, this.momentumElement])
+      MathJax.Hub.Queue(() => {
+        onTypesetFinish({
+          id: this.props.id,
+          element: this.momentumElement.querySelector('.MathJax_Preview + span')
         })
       })
     } else {
@@ -148,22 +185,25 @@ export default class GridArrow extends Component {
       if (prevProps == null) prevProps = this.props
 
       let bbox = this.pathElement.getBBox()
+      let mwidth = window.getComputedStyle(this.momentumElement).width
+      let mheight = window.getComputedStyle(this.momentumElement).height
       let {width, height} = window.getComputedStyle(this.valueElement)
 
       ;[width, height] = [width, height].map(parseFloat)
+      ;[mwidth, mheight] = [mwidth, mheight].map(parseFloat)
 
       let labelPosition = this.props.labelPosition || 'left'
-      let [loopAngle, clockwise] = this.props.loop || [0, false]
-      if (clockwise)
-        labelPosition =
-          {left: 'right', right: 'left'}[labelPosition] || labelPosition
+      let momentumPosition = this.props.momentumPosition || 'left'
 
-      let angle = this.getLengthAngle().angle + (loopAngle * Math.PI) / 180
+      let angle = this.getLengthAngle().angle
       let newHeight =
         height * Math.abs(Math.cos(angle)) + width * Math.abs(Math.sin(angle))
+      let newMHeight =
+        mheight * Math.abs(Math.cos(angle)) + mwidth * Math.abs(Math.sin(angle))
       let heightDiff = newHeight - height
-      let labelOffsetX =
-        -width / 2 - (!this.props.loop ? tailHeadHeight / 2 : 0)
+      let mheightDiff = newMHeight - mheight + 10
+      let labelOffsetX = -width / 2
+      let momentumOffsetX = -mwidth / 2
 
       this.setState({
         labelX: `calc(50% + ${labelOffsetX}px)`,
@@ -175,12 +215,19 @@ export default class GridArrow extends Component {
           right:
             this.props.bend > 0
               ? bbox.y + heightDiff / 2 + 11
-              : bbox.y + bbox.height + heightDiff / 2 + 5,
-          inside:
+              : bbox.y + bbox.height + heightDiff / 2 + 5
+        }[labelPosition],
+        momentumX: `calc(50% + ${momentumOffsetX}px)`,
+        momentumY: {
+          left:
+            this.props.bend >= 0
+              ? bbox.y - mheight - mheightDiff / 2 - 5
+              : bbox.y + bbox.height - mheight - mheightDiff / 2 - 11,
+          right:
             this.props.bend > 0
-              ? bbox.y - height / 2
-              : bbox.y + bbox.height - height / 2
-        }[labelPosition]
+              ? bbox.y + mheightDiff / 2 + 11
+              : bbox.y + bbox.height + mheightDiff / 2 + 5
+        }[momentumPosition]
       })
     })
   }
@@ -200,104 +247,149 @@ export default class GridArrow extends Component {
       height,
       leftOffset,
       topOffset,
-      shift,
-      tail,
-      head,
       path,
+      arrowPath,
+      arrowTransform,
+      momentumArrowPath,
+      momentumArrowHeadTransform,
       degree,
       mx,
       my
 
-    if (this.props.loop) {
-      // Loops
+    let {startPoint, endPoint} = this.state
+    ;[mx, my] = arrScale(0.5, arrAdd(startPoint, endPoint))
 
-      if (this.props.phantom) return
-      ;[mx, my] = this.state.startPoint
+    let {length, angle} = this.getLengthAngle()
+    degree = (angle * 180) / Math.PI
 
-      let [angle, clockwise] = this.props.loop || [0, false]
-      let flip = clockwise ? -1 : 1
-      let [radius, labelRadius] = [24, 14]
+    let bend = this.props.bend || 0
+    let bendAngle = (bend * Math.PI) / 180
 
-      width = height = radius * 4 + tailHeadHeight
-      degree = 360 - angle
-      shift = 0
-      path = `
-        M ${width / 2 - labelRadius} ${height / 2}
-        a ${radius} ${radius * 0.8} 0 1 0 ${labelRadius * 2} 0
-      `
+    let [cx, cy] = [length / 2, -(length * Math.tan(bendAngle)) / 2]
+    ;[width, height] = [length, Math.max(Math.abs(cy) + lineWidth, lineWidth)]
+    ;[leftOffset, topOffset] = [-width / 2, 0]
 
-      let offset = 16
+    let leftPoint = [0, height / 2]
+    let rightPoint = [length, height / 2]
+    let controlPoint = arrAdd(leftPoint, [cx, cy])
 
-      leftOffset = -width / 2 - offset * Math.sin((degree * Math.PI) / 180)
-      topOffset = offset * Math.cos((degree * Math.PI) / 180)
+    path = `
+      M ${leftPoint.join(' ')}
+      Q ${controlPoint.join(' ')}
+      ${rightPoint.join(' ')}
+    `
 
-      let multiplier = (flip * 180) / Math.PI
-      let baseDegree = Math.PI * clockwise * multiplier
-      let rotate = (Math.asin(labelRadius / radius) - Math.PI) * multiplier
-      let offsetLabel = labelRadius * flip
-      let tailRotateAnchor = [width / 2 - offsetLabel, height / 2]
-      let headRotateAnchor = [width / 2 + offsetLabel, height / 2]
+    let properties = new svgPathProperties(path)
 
-      tail = {
-        x: width / 2 - offsetLabel,
-        y: height / 2,
-        transform: `
-          rotate(${baseDegree - rotate} ${tailRotateAnchor.join(' ')})
-          translate(${-tailHeadWidth} ${-tailHeadHeight / 2})
-        `
+    arrowPath = 'M 10 0 -10 7 -10 -7'
+    let midLength = properties.getTotalLength() / 2
+    let midPt = properties.getPointAtLength(midLength)
+    let midTangent = properties.getTangentAtLength(midLength)
+    let midAngle = -Math.atan2(midTangent.y, midTangent.x)
+    arrowTransform =
+      'translate(' +
+      [midPt.x, midPt.y].join(' ') +
+      ') rotate (' +
+      (midAngle + (this.props.charge === -1 ? 180 : 0)) +
+      ')'
+
+    let firstLen = properties.getTotalLength() * 0.15
+    let secondLen = properties.getTotalLength() - firstLen
+    let firstPt = properties.getPointAtLength(firstLen)
+    let secondPt = properties.getPointAtLength(secondLen)
+    let firstTangent = properties.getTangentAtLength(firstLen)
+    let dist =
+      !this.props.momentumPosition || this.props.momentumPosition == 'left'
+        ? -10
+        : 10
+    let momentumArrowStart = arrAdd(
+      [firstPt.x, firstPt.y],
+      arrScale(dist, normalize([-firstTangent.y, firstTangent.x]))
+    )
+    let momentumArrowEnd = arrAdd(
+      [secondPt.x, secondPt.y],
+      arrScale(dist, normalize([firstTangent.y, firstTangent.x]))
+    )
+    let momentumControlPoint = arrAdd(
+      momentumArrowStart,
+      arrScale(
+        (0.5 * (momentumArrowEnd[0] - momentumArrowStart[0])) / firstTangent.x,
+        [firstTangent.x, firstTangent.y]
+      )
+    )
+    momentumArrowPath = `
+    M ${momentumArrowStart.join(' ')}
+    Q ${momentumControlPoint.join(' ')}
+    ${momentumArrowEnd.join(' ')}
+  `
+
+    momentumArrowHeadTransform =
+      'translate (' +
+      arrAdd(
+        momentumArrowEnd,
+        arrScale(5, normalize([-firstTangent.y, -firstTangent.x]))
+      ).join(' ') +
+      ') rotate (' +
+      (180 / Math.PI) * Math.atan2(-firstTangent.y, firstTangent.x) +
+      ')'
+
+    if (['photon', 'gluon'].includes(this.props.line)) {
+      var pathLen = properties.getTotalLength()
+      var numSteps = Math.round(pathLen / squiggleStep)
+
+      var pos = properties.getPointAtLength(0)
+      var newPath = 'M' + [pos.x, pos.y].join(',')
+      var side = -1
+      for (var i = 1; i <= numSteps; i++) {
+        var last = pos
+        var pos = properties.getPointAtLength((i * pathLen) / numSteps)
+
+        var vector = {x: pos.x - last.x, y: pos.y - last.y}
+        var vectorLen = Math.sqrt(vector.x * vector.x + vector.y * vector.y)
+
+        if (this.props.line == 'photon') {
+          var perpVector = {
+            x: -(squiggleAmplitude * vector.y) / vectorLen,
+            y: (squiggleAmplitude * vector.x) / vectorLen
+          }
+
+          var half = {x: last.x + vector.x / 2, y: last.y + vector.y / 2}
+
+          var cp = {
+            x: half.x + perpVector.x * side,
+            y: half.y + perpVector.y * side
+          }
+          newPath += 'Q' + [cp.x, cp.y, pos.x, pos.y].join(',')
+
+          side = -side
+        } else {
+          var perpVector = {
+            x: -(gluonAmplitude * vector.y) / vectorLen,
+            y: (gluonAmplitude * vector.x) / vectorLen
+          }
+
+          var half = {
+            x: last.x + vector.x / 2,
+            y: last.y + vector.y / 2
+          }
+          var halfUp = {
+            x: last.x + vector.x / 2 + perpVector.x * side,
+            y: last.y + vector.y / 2 + perpVector.y * side
+          }
+
+          var cp = {
+            x: pos.x + perpVector.x * side,
+            y: pos.y + perpVector.y * side
+          }
+
+          newPath +=
+            ' C ' +
+            [half.x, half.y, cp.x, cp.y, halfUp.x, halfUp.y].join(',') +
+            ' S ' +
+            [half.x, half.y, pos.x, pos.y].join(',')
+        }
       }
-
-      head = {
-        x: width / 2 + offsetLabel,
-        y: height / 2,
-        transform: `
-          rotate(${baseDegree + rotate} ${headRotateAnchor.join(' ')})
-          translate(0 ${-tailHeadHeight / 2})
-        `
-      }
-    } else {
-      // Arrows
-
-      let {startPoint, endPoint} = this.state
-      ;[mx, my] = arrScale(0.5, arrAdd(startPoint, endPoint))
-
-      let {length, angle} = this.getLengthAngle()
-      degree = (angle * 180) / Math.PI
-      length -= 2 * tailHeadWidth
-
-      let bend = this.props.bend || 0
-      let bendAngle = (bend * Math.PI) / 180
-
-      shift = this.props.shift || 0
-
-      let [cx, cy] = [length / 2, -(length * Math.tan(bendAngle)) / 2]
-      ;[width, height] = [
-        length + 2 * tailHeadWidth + tailHeadHeight,
-        Math.max(Math.abs(cy) + tailHeadHeight, tailHeadHeight)
-      ]
-      ;[leftOffset, topOffset] = [-width / 2, 0]
-
-      let leftPoint = [tailHeadWidth, height / 2]
-      let rightPoint = [tailHeadWidth + length, height / 2]
-      let controlPoint = arrAdd(leftPoint, [cx, cy])
-
-      path = `
-        M ${leftPoint.join(' ')}
-        Q ${controlPoint.join(' ')}
-        ${rightPoint.join(' ')}
-      `
-
-      tail = {
-        x: 0,
-        y: height / 2 - 13 / 2,
-        transform: `rotate(${-bend} ${tailHeadWidth} ${height / 2})`
-      }
-
-      head = {
-        x: length + tailHeadWidth,
-        y: height / 2 - 13 / 2,
-        transform: `rotate(${bend} ${length + tailHeadWidth} ${height / 2})`
-      }
+      path = newPath
     }
 
     return (
@@ -312,7 +404,7 @@ export default class GridArrow extends Component {
           width,
           left: mx + leftOffset,
           top: my - height / 2 + topOffset,
-          transform: `rotate(${degree}deg) translateY(${shift * 7}px)`
+          transform: `rotate(${degree}deg)`
         }}
         onClick={this.props.onClick}
       >
@@ -326,68 +418,47 @@ export default class GridArrow extends Component {
             d={path}
           />
 
-          <g
-            ref={el => (this.pathElement = el)}
-            fill="none"
-            mask={
-              this.props.line === 'double'
-                ? `url(#hollowPath${this.props.id})`
-                : null
-            }
-          >
+          <g ref={el => (this.pathElement = el)} fill="none">
             <path
               d={path}
               stroke={this.props.line === 'none' ? 'transparent' : 'black'}
-              stroke-width={this.props.line === 'double' ? 6 : 1}
+              stroke-width={2}
               stroke-dasharray={
                 {
-                  dashed: '7, 3',
-                  dotted: '2, 4'
+                  scalar: '7, 3'
                 }[this.props.line]
               }
             />
-
-            {this.props.line === 'double' && (
-              // Remove line interior for double struck arrows
-
-              <mask
-                id={`hollowPath${this.props.id}`}
-                maskUnits="userSpaceOnUse"
-              >
-                <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                <path
-                  d={path}
-                  stroke="black"
-                  stroke-width="4"
-                  stroke-linecap="square"
-                />
-              </mask>
-            )}
           </g>
 
-          <image
-            x={tail.x}
-            y={tail.y}
-            width={tailHeadWidth}
-            height={tailHeadHeight}
-            transform={tail.transform}
-            xlinkHref={`./img/arrow/${[
-              this.props.line === 'double' ? 'double-' : '',
-              this.props.tail || 'none'
-            ].join('')}.svg`}
+          <path
+            fill={
+              this.props.charge == 0 || typeof this.props.charge === 'undefined'
+                ? 'transparent'
+                : 'black'
+            }
+            d={arrowPath}
+            transform={arrowTransform}
           />
 
-          <image
-            x={head.x}
-            y={head.y}
-            width={tailHeadWidth}
-            height={tailHeadHeight}
-            transform={head.transform}
-            xlinkHref={`./img/arrow/${[
-              this.props.line === 'double' ? 'double-' : '',
-              this.props.head || 'default'
-            ].join('')}.svg`}
-          />
+          {this.props.momentum ? (
+            <g>
+              <path
+                d={momentumArrowPath}
+                stroke="black"
+                stroke-width={1}
+                fill="transparent"
+              />
+              <image
+                x={0}
+                y={0}
+                width={10}
+                height={10}
+                transform={momentumArrowHeadTransform}
+                xlinkHref={`./img/arrow/default.svg`}
+              />
+            </g>
+          ) : null}
         </svg>
 
         <div
@@ -401,6 +472,22 @@ export default class GridArrow extends Component {
         >
           {this.props.value ? (
             `\\(${this.props.value}\\)`
+          ) : (
+            <span class="hide">_</span>
+          )}
+        </div>
+
+        <div
+          ref={el => (this.momentumElement = el)}
+          class={classNames('momentum', this.props.momentumPosition)}
+          style={{
+            left: this.state.momentumX,
+            top: this.state.momentumY,
+            transform: `rotate(${-degree}deg)`
+          }}
+        >
+          {this.props.momentum ? (
+            `\\(${this.props.momentum}\\)`
           ) : (
             <span class="hide">_</span>
           )}
